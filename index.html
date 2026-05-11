@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chi-kế-toán — Match Images to Invoices</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <h1 class="text-2xl font-semibold mb-4">Chi cute — Ghép ảnh giao dịch với hóa đơn</h1>
+
+    <div id="progress" class="mb-6">
+      <div class="w-full bg-gray-200 rounded h-3 overflow-hidden">
+        <div id="progress-bar" class="bg-blue-500 h-3 w-0"></div>
+      </div>
+      <div class="flex justify-between text-sm mt-2">
+        <span>Bước 1: Tải Excel</span>
+        <span>Bước 2: Tải ảnh giao dịch</span>
+        <span>Bước 3: Tự động ghép</span>
+        <span>Bước 4: Xem lại thủ công</span>
+        <span>Bước 5: Xuất file</span>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <!-- Step 1 -->
+      <div class="card p-4 bg-white rounded shadow" id="step-1">
+        <h2 class="font-medium mb-2">Bước 1 — Upload file hoá đơn (.xlsx)</h2>
+        <button id="export-template" class="bg-gray-200 text-gray-800 px-3 py-1 rounded mb-3 mr-2">Tải file mẫu Excel</button>
+        <input id="excel-input" type="file" accept=".xlsx,.xls" class="mb-3" />
+        <div id="excel-error" class="text-sm text-red-600"></div>
+        <div id="invoice-preview" class="mt-4"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="card p-4 bg-white rounded shadow" id="step-2">
+        <h2 class="font-medium mb-2">Bước 2 — Tải ảnh giao dịch</h2>
+        <input id="images-input" type="file" accept="image/*" multiple class="mb-3" />
+        <div id="images-list" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="card p-4 bg-white rounded shadow" id="step-3">
+        <h2 class="font-medium mb-2">Bước 3 — Tự động ghép</h2>
+        <button id="run-mapping" class="bg-blue-500 text-white px-3 py-1 rounded mb-3">Chạy tự động ghép</button>
+        <div id="mapping-table"></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="card p-4 bg-white rounded shadow" id="step-4">
+        <h2 class="font-medium mb-2">Bước 4 — Xem lại & chỉnh sửa</h2>
+        <div id="review-table"></div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="card p-4 bg-white rounded shadow" id="step-5">
+        <h2 class="font-medium mb-2">Bước 5 — Xuất file Word</h2>
+        <button id="export-all" class="bg-green-600 text-white px-3 py-1 rounded">Xuất tất cả đã xác nhận</button>
+        <div id="export-log" class="mt-3 text-sm"></div>
+      </div>
+    </div>
+
+    <div class="mt-6 text-xs text-gray-500">Toàn bộ xử lý trên trình duyệt, không gửi dữ liệu ra ngoài. Hỗ trợ tiếng Việt đầy đủ.</div>
+  </div>
+
+  <!-- CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

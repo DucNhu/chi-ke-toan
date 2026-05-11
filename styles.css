@@ -1,0 +1,12 @@
+/* ...existing code... */
+
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+.card { border: 1px solid rgba(0,0,0,0.03); }
+.img-preview { width: 100%; height: 150px; object-fit: cover; border-radius: 6px; }
+.status-badge { padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+.status-confirmed { background: #d1fae5; color: #065f46; }
+.status-ambiguous { background: #fef3c7; color: #92400e; }
+.status-unmatched { background: #fee2e2; color: #991b1b; }
+.progress-small { height: 8px; background: #e5e7eb; border-radius: 6px; }
+.progress-small > div { height: 8px; background: #3b82f6; border-radius: 6px; }
+table td, th { text-align: left;}
