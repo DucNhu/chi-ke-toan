@@ -10,10 +10,14 @@ const imagesList = document.getElementById('images-list');
 const runMappingBtn = document.getElementById('run-mapping');
 const mappingTable = document.getElementById('mapping-table');
 const reviewTable = document.getElementById('review-table');
-const exportAllBtn = document.getElementById('export-all');
+// const exportAllBtn = document.getElementById('export-all');
 const exportLog = document.getElementById('export-log');
 const progressBar = document.getElementById('progress-bar');
 const exportTemplateBtn = document.getElementById('export-template');
+const mappingSummary = document.getElementById('mapping-summary');
+const unmatchedImagesSection = document.getElementById('unmatched-images-section');
+const unmatchedBillsSection = document.getElementById('unmatched-bills-section');
+const imagesProgressTitle = document.getElementById('images-progress-title');
 
 function setStepProgress(step) {
   const pct = Math.min(100, Math.max(0, (step-1) * 25));
@@ -76,6 +80,7 @@ excelInput.addEventListener('change', (e) => {
         };
       });
       renderInvoicePreview();
+      renderAllMappingUI();
       setStepProgress(2);
     } catch (err) {
       console.error(err);
@@ -101,20 +106,36 @@ function renderInvoicePreview() {
 // Images handling & OCR
 imagesInput.addEventListener('change', (e) => {
   const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+  if (!files.length) {
+    if (imagesProgressTitle) imagesProgressTitle.textContent = '';
+    return;
+  }
   images = files.map((f, idx) => {
     return { id: idx, file: f, dataUrl: '', ocrText: '', extractedAmount: null, status: 'pending', matchedInvoiceId: null, ocrProgress: 0 };
   });
   imagesList.innerHTML = '';
+  if (imagesProgressTitle) imagesProgressTitle.textContent = `Đang phân tích 0/${images.length} ảnh`;
+  let done = 0;
   images.forEach((img, i) => {
     const reader = new FileReader();
     reader.onload = function(evt) {
       img.dataUrl = evt.target.result;
       renderImagesList();
-      runOCRForImage(img);
+      runOCRForImage(img).then(() => {
+        done++;
+        if (imagesProgressTitle) imagesProgressTitle.textContent = `Đang phân tích ${done}/${images.length} ảnh`;
+        // Khi xong hết thì hiện "Đã phân tích xong N ảnh"
+        if (done === images.length && images.length > 0) {
+          setTimeout(() => {
+            if (imagesProgressTitle) imagesProgressTitle.textContent = `Đã phân tích xong ${images.length} ảnh`;
+          }, 800);
+        }
+      });
+      renderAllMappingUI();
     };
     reader.readAsDataURL(img.file);
   });
+  renderAllMappingUI();
   setStepProgress(3);
 });
 
@@ -150,10 +171,12 @@ async function runOCRForImage(img) {
     img.extractedAmount = extracted;
     img.status = extracted != null ? 'ocr' : 'unmatched';
     renderImagesList();
+    renderAllMappingUI();
   } catch (err) {
     console.error('OCR error', err);
     img.status = 'unmatched';
     img.ocrProgress = 100; renderImagesList();
+    renderAllMappingUI();
   }
 }
 
@@ -187,46 +210,150 @@ function extractAmountFromText(text) {
 // Auto mapping
 runMappingBtn.addEventListener('click', () => {
   if (!invoices.length) { alert('Vui lòng upload Excel trước.'); return; }
+  // Reset all invoice usage
+  const usedInvoiceIds = new Set();
   images.forEach(img => {
     if (img.status === 'ocr') {
-      const matched = invoices.find(inv => inv.price === img.extractedAmount);
+      // Only allow each invoice to be matched once (unless manually reassigned)
+      const matched = invoices.find(inv => inv.price === img.extractedAmount && !usedInvoiceIds.has(inv.id));
       img.matchedInvoiceId = matched ? matched.id : null;
       img.status = matched ? 'matched' : 'unmatched';
+      if (matched) usedInvoiceIds.add(matched.id);
     }
   });
   renderImagesList();
-  renderReviewTable(); // <-- cập nhật bảng bước 4
+  renderReviewTable();
+  renderAllMappingUI();
   setStepProgress(4);
 });
 
 function renderReviewTable() {
   if (!images.length) {
     reviewTable.innerHTML = '<div class="text-sm text-gray-500">Chưa có ảnh nào.</div>';
+    renderAllMappingUI();
     return;
   }
-  let html = '<div class="overflow-x-auto"><table class="min-w-full text-sm"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Giá OCR</th><th class="p-2">Tên bill</th><th class="p-2">Trạng thái</th></tr></thead><tbody>';
+  let html = '<div class="overflow-x-auto"><table class="min-w-full text-sm"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Số tiền thanh toán của ảnh</th><th class="p-2">Tên bill</th><th class="p-2">Trạng thái <span title="Chưa ghép: Ảnh chưa được ghép với bill nào.\nKhông khớp: Ảnh đã nhận diện nhưng không tìm thấy bill phù hợp.\nKhớp: Ảnh đã ghép thành công với bill." style="cursor: help; color: #2563eb;">&#9432;</span></th></tr></thead><tbody>';
   images.forEach((img, idx) => {
     const matched = invoices.find(i => i.id === img.matchedInvoiceId);
-    let statusText = 'Chưa ghép';
+    let statusText = '';
     if (img.status === 'matched') statusText = 'Khớp';
     else if (img.status === 'unmatched') statusText = 'Không khớp';
+    else if (img.status === 'pending') statusText = 'Đang đợi phân tích';
+    else statusText = '—';
     html += `<tr><td class="p-2">${idx+1}</td><td class="p-2"><img src="${img.dataUrl}" style="width:80px;height:50px;object-fit:cover;border-radius:6px" /></td><td class="p-2">${img.extractedAmount || '—'}</td><td class="p-2">${matched ? matched.billName : '—'}</td><td class="p-2">${statusText}</td></tr>`;
   });
   html += '</tbody></table></div>';
   reviewTable.innerHTML = html;
+  renderAllMappingUI();
 }
 
-// Export
-exportAllBtn.addEventListener('click', async () => {
-  if (!invoices.length) { alert('Chưa có dữ liệu để xuất.'); return; }
+function getMatchedAndUnmatched() {
+  // Images: unmatched if status !== 'matched' or matchedInvoiceId == null
   const matchedImages = images.filter(img => img.status === 'matched' && img.matchedInvoiceId != null);
-  if (!matchedImages.length) { alert('Không có cặp nào đã ghép để xuất.'); return; }
-  for (const img of matchedImages) {
-    const inv = invoices.find(i => i.id === img.matchedInvoiceId);
-    await uploadToDrive(inv, img);
+  const unmatchedImages = images.filter(img => img.status !== 'matched' || img.matchedInvoiceId == null);
+
+  // Bills: unmatched if not used by any image
+  const matchedBillIds = new Set(matchedImages.map(img => img.matchedInvoiceId));
+  const unmatchedBills = invoices.filter(inv => !matchedBillIds.has(inv.id));
+
+  return { matchedImages, unmatchedImages, unmatchedBills };
+}
+
+function renderMappingSummary() {
+  const { matchedImages, unmatchedImages, unmatchedBills } = getMatchedAndUnmatched();
+  mappingSummary.innerHTML = `
+    <div class="flex flex-wrap gap-4 items-center">
+      <div class="bg-green-100 text-green-800 px-4 py-2 rounded shadow transition-all">
+        Đã ghép: <span class="font-bold">${matchedImages.length}</span>
+      </div>
+      <div class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded shadow transition-all">
+        Ảnh chưa ghép: <span class="font-bold">${unmatchedImages.length}</span>
+      </div>
+      <div class="bg-red-100 text-red-800 px-4 py-2 rounded shadow transition-all">
+        Bill chưa ghép: <span class="font-bold">${unmatchedBills.length}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderUnmatchedImages() {
+  const { unmatchedImages } = getMatchedAndUnmatched();
+  if (!unmatchedImages.length) {
+    unmatchedImagesSection.innerHTML = '';
+    return;
   }
-  alert('Đã xuất xong tất cả file Word!');
-});
+  unmatchedImagesSection.innerHTML = `
+    <div class="card p-4 bg-white rounded shadow transition-all duration-300">
+      <h2 class="font-medium mb-3">Ảnh chưa được map</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        ${unmatchedImages.map(img => `
+          <div class="p-3 bg-gray-50 rounded shadow flex flex-col items-center">
+            <img src="${img.dataUrl}" class="mb-2 rounded max-h-32 object-contain border" />
+            <div class="text-xs text-gray-700 truncate w-full">${img.file?.name || ''}</div>
+            <div class="text-sm mt-1">Giá trong ảnh: <span class="font-semibold">${img.extractedAmount != null ? img.extractedAmount : '—'}</span></div>
+            <div class="text-xs mt-1 ${img.status === 'unmatched' ? 'text-red-600' : 'text-gray-500'}">
+              ${img.status === 'unmatched' ? (img.ocrText ? 'Không khớp bill nào' : 'OCR lỗi hoặc không đọc được số tiền') : (img.status === 'pending' ? 'Đang nhận diện...' : 'Đã nhận diện')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderUnmatchedBills() {
+  const { unmatchedBills } = getMatchedAndUnmatched();
+  if (!unmatchedBills.length) {
+    unmatchedBillsSection.innerHTML = '';
+    return;
+  }
+  unmatchedBillsSection.innerHTML = `
+    <div class="card p-4 bg-white rounded shadow transition-all duration-300">
+      <h2 class="font-medium mb-3">Bill chưa được map</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr>
+              <th class="p-2 text-left">Tên bill</th>
+              <th class="p-2 text-left">Đơn giá</th>
+              <th class="p-2 text-left">Ngày xuất hoá đơn</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${unmatchedBills.map(inv => `
+              <tr>
+                <td class="p-2">${inv.billName}</td>
+                <td class="p-2">${inv.priceRaw}</td>
+                <td class="p-2">${inv.date}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderAllMappingUI() {
+  renderMappingSummary();
+  renderUnmatchedImages();
+  renderUnmatchedBills();
+}
+
+// Call renderAllMappingUI after mapping or manual changes
+
+// Export
+// exportAllBtn.addEventListener('click', async () => {
+//   if (!invoices.length) { alert('Chưa có dữ liệu để xuất.'); return; }
+//   const matchedImages = images.filter(img => img.status === 'matched' && img.matchedInvoiceId != null);
+//   if (!matchedImages.length) { alert('Không có cặp nào đã ghép để xuất.'); return; }
+//   for (const img of matchedImages) {
+//     const inv = invoices.find(i => i.id === img.matchedInvoiceId);
+//     await uploadToDrive(inv, img);
+//   }
+//   alert('Đã xuất xong tất cả file Word!');
+// });
 
 async function exportWordDoc(inv, img) {
   if (!window.docx) {
