@@ -65,6 +65,29 @@ th {
   max-height: 480px;
   overflow-y: auto;
 }
+
+/* Scrollable sections for unmatched items */
+#unmatched-images-section .scroll-container {
+  max-height: 360px;
+  overflow-y: auto;
+}
+#unmatched-bills-section .scroll-container {
+  max-height: 360px;
+  overflow-y: auto;
+}
+#suspicious-bill-section .scroll-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Frozen table headers — works for all tables */
+thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+  box-shadow: 0 1px 0 #e5e7eb;
+}
 .sticky-header th {
   position: sticky;
   top: 0;
@@ -90,4 +113,14 @@ th {
   100% {
     background-position: -200% 0;
   }
+}
+
+/* Dropzone styles */
+.dropzone.drag-over {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+.dropzone.drag-over svg {
+  color: #3b82f6;
 }

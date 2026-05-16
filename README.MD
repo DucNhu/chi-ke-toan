@@ -22,8 +22,9 @@ A tool to match transaction screenshot images with invoice data from an Excel fi
 - For each image, run Tesseract.js OCR (language: vie+eng)
 - Extract money amount using these regex patterns:
   (try all patterns, pick the largest confident match)
-  - /(\d{1,3}(?:[.,]\d{3})+)\s*(?:đ|VND|vnđ|d\b)/gi
+  - /(\d{1,3}(?:[.,]\d{3})+)\s*(?:đ|VND|vnd|VNĐ|vnđ)/gi
   - /(?:số tiền|amount|tổng tiền|thành tiền|total)[^\d]*(\d{1,3}(?:[.,]\d{3})+)/gi
+  - /(\d{1,3}(?:[.,]\d{3})+)/g
   - /(\d{4,})/g  ← fallback: any number >= 4 digits
 - Normalize extracted amount: remove dots/commas as thousand separators → integer
 
