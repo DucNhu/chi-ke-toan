@@ -587,6 +587,10 @@ function renderMappingSummary() {
 
 function renderUnmatchedImages() {
   const { unmatchedImages } = getMatchedAndUnmatched();
+  // Get suspicious images (those matched in suspicious bill section)
+  const suspicious = findSuspiciousBillMappings();
+  const suspiciousImageIds = new Set();
+  suspicious.forEach(item => item.images.forEach(img => suspiciousImageIds.add(img.id)));
   if (!unmatchedImages.length) {
     unmatchedImagesSection.innerHTML = '';
     return;
@@ -598,11 +602,12 @@ function renderUnmatchedImages() {
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           ${unmatchedImages.map(img => `
             <div class="p-3 bg-gray-50 rounded shadow flex flex-col items-center">
-              <img src="${img.dataUrl}" class="mb-2 rounded max-h-32 object-contain border img-popup" style="cursor:pointer;" />
+              <img src="${img.dataUrl}" class="mb-2 rounded max-h-32 object-contain border img-popup" style="cursor:pointer; border: ${suspiciousImageIds.has(img.id) ? '2px solid #fbbf24' : '1px solid #e5e7eb'};" />
               <div class="text-xs text-gray-700 truncate w-full">${img.file?.name || ''}</div>
               <div class="text-sm mt-1">Số tiền trong ảnh: <span class="font-semibold">${img.extractedAmount != null ? formatAmount(img.extractedAmount) : '—'}</span></div>
               <div class="text-xs mt-1 ${img.status === 'unmatched' ? 'text-red-600' : 'text-gray-500'}">
                 ${img.matchReason === 'name-mismatch' ? 'Trùng số tiền nhưng tên không khớp' : (img.status === 'unmatched' ? (img.ocrText ? 'Không khớp bill nào' : 'OCR lỗi hoặc không đọc được số tiền') : (img.status === 'pending' ? 'Đang nhận diện...' : 'Đã nhận diện'))}
+                ${suspiciousImageIds.has(img.id) ? '<span class="badge badge-suspicious ml-2">Nghi vấn ghép</span>' : ''}
               </div>
             </div>
           `).join('')}
@@ -614,6 +619,9 @@ function renderUnmatchedImages() {
 
 function renderUnmatchedBills() {
   const { unmatchedBills } = getMatchedAndUnmatched();
+  // Get suspicious bills (those matched in suspicious bill section)
+  const suspicious = findSuspiciousBillMappings();
+  const suspiciousBillIds = new Set(suspicious.map(item => item.bill.id));
   if (!unmatchedBills.length) {
     unmatchedBillsSection.innerHTML = '';
     return;
@@ -630,6 +638,7 @@ function renderUnmatchedBills() {
               <th class="p-2 text-left">Nội dung</th>
               <th class="p-2 text-left">Số tiền</th>
               <th class="p-2 text-left">Ngày</th>
+              <th class="p-2 text-left">Ghi chú</th>
             </tr>
           </thead>
           <tbody>
@@ -640,6 +649,7 @@ function renderUnmatchedBills() {
                 <td class="p-2">${inv.billName || '—'}</td>
                 <td class="p-2">${formatAmount(inv.priceRaw)}</td>
                 <td class="p-2">${inv.date || '—'}</td>
+                <td class="p-2">${suspiciousBillIds.has(inv.id) ? '<span class=\"badge badge-suspicious\">Nghi vấn ghép</span>' : ''}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -956,6 +966,15 @@ async function webpToPng(dataUrl) {
     .badge-unmatched { background: #fecaca; color: #b91c1c; }
     .badge-duplicate { background: #fca5a5; color: #7f1d1d; }
     .badge-pending { background: #e0e7ff; color: #3730a3; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// Add badge style for suspicious
+(function injectSuspiciousBadgeCSS() {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .badge-suspicious { background: #fbbf24; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
   `;
   document.head.appendChild(style);
 })();
