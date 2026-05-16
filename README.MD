@@ -1,3 +1,21 @@
+# CHi-ke-toan Web App
+
+## New Features & UI Updates (May 2026)
+
+- **Nghi vấn ghép bill** (Suspicious combined bill detection) section is now displayed *above* the "Ảnh chưa được map" section for better visibility.
+- **Trạng thái** (Status) column in the review table now uses colored badges for each status:
+  - <span style="background:#bbf7d0;color:#166534;padding:2px 8px;border-radius:12px;font-size:12px;">Khớp</span>: Matched successfully
+  - <span style="background:#fef08a;color:#a16207;padding:2px 8px;border-radius:12px;font-size:12px;">Không khớp tên</span>: Name mismatch
+  - <span style="background:#fecaca;color:#b91c1c;padding:2px 8px;border-radius:12px;font-size:12px;">Không khớp</span>: No suitable bill found or OCR error
+  - <span style="background:#fca5a5;color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:12px;">Nhiều bill giống nhau</span>: Multiple bills with same name and amount
+  - <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:12px;font-size:12px;">Đang đợi phân tích</span>: OCR in progress
+- **Table headers are now sticky** (frozen) and remain visible while scrolling for all main tables (review, unmatched bills, suspicious bills).
+- Tooltip for the status column header has been updated to explain badge meanings.
+
+---
+
+# Original Instructions
+
 Build me a single-page web app (pure HTML + CSS + JS, no framework) that does the following:
 
 ## OVERVIEW

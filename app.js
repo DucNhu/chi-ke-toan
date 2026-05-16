@@ -540,11 +540,16 @@ function renderReviewTable() {
     renderAllMappingUI();
     return;
   }
-  let html = '<div class="overflow-x-auto"><table class="min-w-full text-sm"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Số tiền trong ảnh</th><th class="p-2">Loại quỹ</th><th class="p-2">Họ và tên</th><th class="p-2">Nội dung</th><th class="p-2">Kiểm tra tên</th><th class="p-2">Trạng thái <span title="Chưa ghép: Ảnh chưa được ghép với bill nào.\nKhông khớp tên: Có bill cùng số tiền nhưng tên trên ảnh không khớp.\nKhớp: Ảnh đã ghép thành công với bill có cùng tên và số tiền." style="cursor: help; color: #2563eb;">&#9432;</span></th></tr></thead><tbody>';
+  let html = `<div class="overflow-x-auto"><table class="min-w-full text-sm review-table-with-sticky"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Số tiền trong ảnh</th><th class="p-2">Loại quỹ</th><th class="p-2">Họ và tên</th><th class="p-2">Nội dung</th><th class="p-2">Kiểm tra tên</th><th class="p-2">Trạng thái <span title="\n<badge class='badge-matched'>Khớp</badge>: Ảnh đã ghép thành công với bill có cùng tên và số tiền.\n<badge class='badge-name-mismatch'>Không khớp tên</badge>: Có bill cùng số tiền nhưng tên trên ảnh không khớp.\n<badge class='badge-unmatched'>Không khớp</badge>: Không tìm thấy bill phù hợp hoặc OCR lỗi.\n<badge class='badge-duplicate'>Nhiều bill giống nhau</badge>: Có nhiều bill cùng tên và số tiền.\n<badge class='badge-pending'>Đang đợi phân tích</badge>: OCR đang chạy.\n" style="cursor: help; color: #2563eb;">&#9432;</span></th></tr></thead><tbody>`;
   images.forEach((img, idx) => {
     const matched = invoices.find(i => i.id === img.matchedInvoiceId);
     const reviewStatus = getImageReviewStatus(img, matched);
-    html += `<tr><td class="p-2">${idx+1}</td><td class="p-2"><img src="${img.dataUrl}" class="img-popup" style="width:80px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;" /></td><td class="p-2">${img.extractedAmount != null ? formatAmount(img.extractedAmount) : '—'}</td><td class="p-2">${matched ? matched.fundType || '—' : '—'}</td><td class="p-2">${matched ? matched.fullName || '—' : '—'}</td><td class="p-2">${matched ? matched.billName || '—' : '—'}</td><td class="p-2">${reviewStatus.nameCheckText}</td><td class="p-2"><div>${reviewStatus.statusText}</div><div class="text-xs text-gray-500">${reviewStatus.detailText || ''}</div></td></tr>`;
+    let badgeClass = 'badge-unmatched', badgeText = reviewStatus.statusText;
+    if (reviewStatus.statusText === 'Khớp') badgeClass = 'badge-matched';
+    else if (reviewStatus.statusText === 'Không khớp tên') badgeClass = 'badge-name-mismatch';
+    else if (reviewStatus.statusText === 'Nhiều bill giống nhau') badgeClass = 'badge-duplicate';
+    else if (reviewStatus.statusText === 'Đang đợi phân tích') badgeClass = 'badge-pending';
+    html += `<tr><td class="p-2">${idx+1}</td><td class="p-2"><img src="${img.dataUrl}" class="img-popup" style="width:80px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;" /></td><td class="p-2">${img.extractedAmount != null ? formatAmount(img.extractedAmount) : '—'}</td><td class="p-2">${matched ? matched.fundType || '—' : '—'}</td><td class="p-2">${matched ? matched.fullName || '—' : '—'}</td><td class="p-2">${matched ? matched.billName || '—' : '—'}</td><td class="p-2">${reviewStatus.nameCheckText}</td><td class="p-2"><span class="badge ${badgeClass}">${badgeText}</span><div class="text-xs text-gray-500">${reviewStatus.detailText || ''}</div></td></tr>`;
   });
   html += '</tbody></table></div>';
   reviewTable.innerHTML = html;
@@ -646,9 +651,9 @@ function renderUnmatchedBills() {
 
 function renderAllMappingUI() {
   renderMappingSummary();
+  renderSuspiciousBillTable(); // Move suspicious bill section above unmatched images
   renderUnmatchedImages();
   renderUnmatchedBills();
-  renderSuspiciousBillTable();
 }
 
 // --- Suspicious combined bill detection ---
@@ -927,4 +932,30 @@ async function webpToPng(dataUrl) {
   });
 }
 
-// (template export removed)
+// --- CSS for sticky headers and badges ---
+(function injectStickyTableHeaderCSS() {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .review-table-with-sticky thead th, .min-w-full thead th {
+      position: sticky;
+      top: 0;
+      background: #f9fafb;
+      z-index: 2;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .badge-matched { background: #bbf7d0; color: #166534; }
+    .badge-name-mismatch { background: #fef08a; color: #a16207; }
+    .badge-unmatched { background: #fecaca; color: #b91c1c; }
+    .badge-duplicate { background: #fca5a5; color: #7f1d1d; }
+    .badge-pending { background: #e0e7ff; color: #3730a3; }
+  `;
+  document.head.appendChild(style);
+})();
