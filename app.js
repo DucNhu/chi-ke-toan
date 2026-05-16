@@ -222,21 +222,36 @@ function getImageReviewStatus(img, matchedInvoice) {
     detailText: nameMatch.label
   };
 }
-
 function normalizeExcelDate(value) {
   if (value == null || value === '') return '';
+
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    const d = new Date(value);
+
+    // cộng thêm 1 ngày
+    d.setDate(d.getDate() + 1);
+
+    const vnDate =
+      d.getDate().toString().padStart(2, '0') + '/' +
+      (d.getMonth() + 1).toString().padStart(2, '0') + '/' +
+      d.getFullYear();
+
+    return vnDate;
   }
+
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const parsed = XLSX.SSF.parse_date_code(value);
+    // Excel serial date
+    const parsed = XLSX.SSF.parse_date_code(value + 1);
+
     if (parsed) {
       const y = String(parsed.y).padStart(4, '0');
       const m = String(parsed.m).padStart(2, '0');
       const d = String(parsed.d).padStart(2, '0');
+
       return `${y}-${m}-${d}`;
     }
   }
+
   return String(value).trim();
 }
 
