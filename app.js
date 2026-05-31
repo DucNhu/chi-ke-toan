@@ -10,7 +10,7 @@ const imagesList = document.getElementById('images-list');
 const runMappingBtn = document.getElementById('run-mapping');
 const mappingTable = document.getElementById('mapping-table');
 const reviewTable = document.getElementById('review-table');
-// const exportAllBtn = document.getElementById('export-all');
+const exportAllBtn = document.getElementById('export-all');
 const exportLog = document.getElementById('export-log');
 const progressBar = document.getElementById('progress-bar');
 const mappingSummary = document.getElementById('mapping-summary');
@@ -549,22 +549,60 @@ runMappingBtn.addEventListener('click', () => {
   setStepProgress(4);
 });
 
+function getReviewRowData(img, idx) {
+  const matched = invoices.find(i => i.id === img.matchedInvoiceId);
+  const reviewStatus = getImageReviewStatus(img, matched);
+  return {
+    index: idx + 1,
+    img,
+    matched,
+    imageFileName: img.file?.name || `anh-giao-dich-${idx + 1}`,
+    extractedAmount: img.extractedAmount != null ? formatAmount(img.extractedAmount) : '—',
+    fundType: matched ? matched.fundType || '—' : '—',
+    fullName: matched ? matched.fullName || '—' : '—',
+    billName: matched ? matched.billName || '—' : '—',
+    date: matched ? matched.date || '—' : '—',
+    nameCheckText: reviewStatus.nameCheckText || '—',
+    statusText: reviewStatus.statusText || '—',
+    detailText: reviewStatus.detailText || '',
+    badgeClass: getStatusBadgeClass(reviewStatus.statusText)
+  };
+}
+
+function getStatusBadgeClass(statusText) {
+  if (statusText === 'Khớp') return 'badge-matched';
+  if (statusText === 'Không khớp tên') return 'badge-name-mismatch';
+  if (statusText === 'Nhiều bill giống nhau') return 'badge-duplicate';
+  if (statusText === 'Đang đợi phân tích') return 'badge-pending';
+  return 'badge-unmatched';
+}
+
 function renderReviewTable() {
   if (!images.length) {
     reviewTable.innerHTML = '<div class="text-sm text-gray-500">Chưa có ảnh nào.</div>';
     renderAllMappingUI();
     return;
   }
-  let html = `<div class="overflow-x-auto"><table class="min-w-full text-sm review-table-with-sticky"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Số tiền trong ảnh</th><th class="p-2">Loại quỹ</th><th class="p-2">Họ và tên</th><th class="p-2">Nội dung</th><th class="p-2">Kiểm tra tên</th><th class="p-2">Trạng thái <span title="\n<badge class='badge-matched'>Khớp</badge>: Ảnh đã ghép thành công với bill có cùng tên và số tiền.\n<badge class='badge-name-mismatch'>Không khớp tên</badge>: Có bill cùng số tiền nhưng tên trên ảnh không khớp.\n<badge class='badge-unmatched'>Không khớp</badge>: Không tìm thấy bill phù hợp hoặc OCR lỗi.\n<badge class='badge-duplicate'>Nhiều bill giống nhau</badge>: Có nhiều bill cùng tên và số tiền.\n<badge class='badge-pending'>Đang đợi phân tích</badge>: OCR đang chạy.\n" style="cursor: help; color: #2563eb;">&#9432;</span></th></tr></thead><tbody>`;
+
+  let html = `<div class="overflow-x-auto"><table class="min-w-full text-sm review-table-with-sticky"><thead><tr><th class="p-2">#</th><th class="p-2">Ảnh</th><th class="p-2">Số tiền trong ảnh</th><th class="p-2">Loại quỹ</th><th class="p-2">Họ và tên</th><th class="p-2">Nội dung</th><th class="p-2">Kiểm tra tên</th><th class="p-2">Trạng thái <span title="\n<badge class='badge-matched'>Khớp</badge>: Ảnh đã ghép thành công với bill có cùng tên và số tiền.\n<badge class='badge-name-mismatch'>Không khớp tên</badge>: Có bill cùng số tiền nhưng tên trên ảnh không khớp.\n<badge class='badge-unmatched'>Không khớp</badge>: Không tìm thấy bill phù hợp hoặc OCR lỗi.\n<badge class='badge-duplicate'>Nhiều bill giống nhau</badge>: Có nhiều bill cùng tên và số tiền.\n<badge class='badge-pending'>Đang đợi phân tích</badge>: OCR đang chạy.\n" style="cursor: help; color: #2563eb;">&#9432;</span></th><th class="p-2">Word</th></tr></thead><tbody>`;
+
   images.forEach((img, idx) => {
-    const matched = invoices.find(i => i.id === img.matchedInvoiceId);
-    const reviewStatus = getImageReviewStatus(img, matched);
-    let badgeClass = 'badge-unmatched', badgeText = reviewStatus.statusText;
-    if (reviewStatus.statusText === 'Khớp') badgeClass = 'badge-matched';
-    else if (reviewStatus.statusText === 'Không khớp tên') badgeClass = 'badge-name-mismatch';
-    else if (reviewStatus.statusText === 'Nhiều bill giống nhau') badgeClass = 'badge-duplicate';
-    else if (reviewStatus.statusText === 'Đang đợi phân tích') badgeClass = 'badge-pending';
-    html += `<tr><td class="p-2">${idx+1}</td><td class="p-2"><img src="${img.dataUrl}" class="img-popup" style="width:80px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;" /></td><td class="p-2">${img.extractedAmount != null ? formatAmount(img.extractedAmount) : '—'}</td><td class="p-2">${matched ? matched.fundType || '—' : '—'}</td><td class="p-2">${matched ? matched.fullName || '—' : '—'}</td><td class="p-2">${matched ? matched.billName || '—' : '—'}</td><td class="p-2">${reviewStatus.nameCheckText}</td><td class="p-2"><span class="badge ${badgeClass}">${badgeText}</span><div class="text-xs text-gray-500">${reviewStatus.detailText || ''}</div></td></tr>`;
+    const row = getReviewRowData(img, idx);
+    html += `<tr>
+      <td class="p-2">${row.index}</td>
+      <td class="p-2"><img src="${img.dataUrl}" class="img-popup" style="width:80px;height:50px;object-fit:cover;border-radius:6px;cursor:pointer;" /></td>
+      <td class="p-2">${row.extractedAmount}</td>
+      <td class="p-2">${row.fundType}</td>
+      <td class="p-2">${row.fullName}</td>
+      <td class="p-2">${row.billName}</td>
+      <td class="p-2">${row.nameCheckText}</td>
+      <td class="p-2"><span class="badge ${row.badgeClass}">${row.statusText}</span><div class="text-xs text-gray-500">${row.detailText}</div></td>
+      <td class="p-2">
+        <button type="button" data-export-review-row="${idx}" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs whitespace-nowrap disabled:opacity-50" ${img.dataUrl ? '' : 'disabled'}>
+          Tải Word
+        </button>
+      </td>
+    </tr>`;
   });
   html += '</tbody></table></div>';
   reviewTable.innerHTML = html;
@@ -822,72 +860,224 @@ function renderSuspiciousBillTable() {
 
 // Call renderAllMappingUI after mapping or manual changes
 
-// Export
-// exportAllBtn.addEventListener('click', async () => {
-//   if (!invoices.length) { alert('Chưa có dữ liệu để xuất.'); return; }
-//   const matchedImages = images.filter(img => img.status === 'matched' && img.matchedInvoiceId != null);
-//   if (!matchedImages.length) { alert('Không có cặp nào đã ghép để xuất.'); return; }
-//   for (const img of matchedImages) {
-//     const inv = invoices.find(i => i.id === img.matchedInvoiceId);
-//     await uploadToDrive(inv, img);
-//   }
-//   alert('Đã xuất xong tất cả file Word!');
-// });
+// Export Word files from Step 4 review table
+if (exportAllBtn) {
+  exportAllBtn.addEventListener('click', exportAllReviewRows);
+}
 
-async function exportWordDoc(inv, img) {
-  if (!window.docx) {
-    alert('docx.js chưa sẵn sàng!'); return;
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-export-review-row]');
+  if (!btn) return;
+
+  const rowIndex = Number(btn.dataset.exportReviewRow);
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = 'Đang tạo...';
+
+  try {
+    await exportReviewRowDoc(rowIndex);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
+});
+
+async function exportReviewRowDoc(rowIndex, options = {}) {
+  if (!window.docx) {
+    alert('Thiếu thư viện docx.js. Hãy kiểm tra thẻ script CDN trong index.html.');
+    return;
+  }
+
+  const img = images[rowIndex];
+  if (!img) {
+    alert('Không tìm thấy row cần xuất Word.');
+    return;
+  }
+
+  const row = getReviewRowData(img, rowIndex);
+  await exportWordDocFromReviewRow(row);
+
+  if (exportLog && !options.silent) {
+    exportLog.innerHTML += `<div class="text-green-600">✔ Đã tải Word cho row ${row.index}: ${escapeHtml(row.billName !== '—' ? row.billName : row.imageFileName)}</div>`;
+  }
+}
+
+async function exportAllReviewRows() {
+  if (!images.length) {
+    alert('Chưa có dữ liệu ở bảng Bước 4 để xuất Word.');
+    return;
+  }
+  if (!window.docx) {
+    alert('Thiếu thư viện docx.js. Hãy kiểm tra thẻ script CDN trong index.html.');
+    return;
+  }
+
+  exportAllBtn.disabled = true;
+  const originalText = exportAllBtn.textContent;
+  exportAllBtn.textContent = 'Đang tạo Word...';
+  if (exportLog) exportLog.innerHTML = '<div>Đang tạo file Word từ từng row trong bảng Bước 4...</div>';
+
+  let success = 0;
+  for (let i = 0; i < images.length; i++) {
+    try {
+      await exportReviewRowDoc(i, { silent: true });
+      success++;
+      if (exportLog) exportLog.innerHTML += `<div class="text-green-600">✔ Row ${i + 1}</div>`;
+      // Small delay helps browsers handle multiple downloads from one click.
+      await sleep(150);
+    } catch (err) {
+      console.error(err);
+      if (exportLog) exportLog.innerHTML += `<div class="text-red-600">✖ Row ${i + 1}: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  exportAllBtn.disabled = false;
+  exportAllBtn.textContent = originalText;
+  if (exportLog) exportLog.innerHTML += `<div class="font-semibold mt-2">Hoàn tất: ${success}/${images.length} file Word.</div>`;
+  alert(`Đã tạo ${success}/${images.length} file Word.`);
+  setStepProgress(5);
+}
+
+async function exportWordDocFromReviewRow(row) {
   const docx = window.docx;
+  const titleText = row.billName !== '—' ? row.billName : `Row ${row.index} - ${row.imageFileName}`;
 
   const children = [
-    new docx.Paragraph({ children: [ new docx.TextRun({ text: String(inv.billName), bold: true, size: 28 }) ] }),
-    new docx.Paragraph({ children: [ new docx.TextRun({ text: `Họ và tên: ${inv.fullName || '—'}` }) ] }),
-    new docx.Paragraph({ children: [ new docx.TextRun({ text: `Loại quỹ: ${inv.fundType || '—'}` }) ] }),
-    new docx.Paragraph({ children: [ new docx.TextRun({ text: `Số tiền: ${formatAmount(inv.price)} VND` }) ] }),
-    new docx.Paragraph({ children: [ new docx.TextRun({ text: `Ngày: ${inv.date}` }) ] }),
-    new docx.Paragraph({ text: '' })
+    new docx.Paragraph({
+      children: [new docx.TextRun({ text: String(titleText), bold: true, size: 32 })],
+      spacing: { after: 240 }
+    }),
+    new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: [
+        createDocxTableRow(docx, 'Row', row.index),
+        createDocxTableRow(docx, 'Tên file ảnh', row.imageFileName),
+        createDocxTableRow(docx, 'Số tiền trong ảnh', row.extractedAmount),
+        createDocxTableRow(docx, 'Loại quỹ', row.fundType),
+        createDocxTableRow(docx, 'Họ và tên', row.fullName),
+        createDocxTableRow(docx, 'Nội dung', row.billName),
+        createDocxTableRow(docx, 'Ngày', row.date),
+        createDocxTableRow(docx, 'Kiểm tra tên', row.nameCheckText),
+        createDocxTableRow(docx, 'Trạng thái', row.statusText),
+        createDocxTableRow(docx, 'Chi tiết', row.detailText || '—')
+      ]
+    }),
+    new docx.Paragraph({ text: '', spacing: { after: 180 } }),
+    new docx.Paragraph({
+      children: [new docx.TextRun({ text: 'Ảnh giao dịch', bold: true, size: 24 })],
+      spacing: { before: 180, after: 120 }
+    })
   ];
 
-  if (img.dataUrl) {
+  if (row.img.dataUrl) {
     try {
-      let dataUrl = img.dataUrl;
+      let dataUrl = row.img.dataUrl;
       if (dataUrl.startsWith('data:image/webp')) {
         dataUrl = await webpToPng(dataUrl);
       }
-      // docx v7: ImageRun thay cho Media.addImage
+
       const imgBuffer = await fetch(dataUrl).then(r => r.arrayBuffer());
-      const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
+      const transformation = await getImageTransformation(dataUrl, 520, 650);
       children.push(
         new docx.Paragraph({
           children: [
             new docx.ImageRun({
               data: imgBuffer,
-              transformation: { width: 400, height: 250 },
-              type: ext
+              transformation,
+              type: getDocxImageType(dataUrl)
             })
           ]
         })
       );
     } catch (err) {
       console.error('Lỗi khi thêm ảnh vào Word:', err);
-      children.push(new docx.Paragraph({ children: [ new docx.TextRun({ text: '[Không thể nhúng ảnh]' }) ] }));
+      children.push(new docx.Paragraph({ children: [new docx.TextRun({ text: '[Không thể nhúng ảnh]' })] }));
     }
+  } else {
+    children.push(new docx.Paragraph({ children: [new docx.TextRun({ text: '[Row này chưa có ảnh]' })] }));
   }
 
-  // docx v7: sections truyền vào constructor
   const doc = new docx.Document({
     sections: [{ children }]
   });
 
   const blob = await docx.Packer.toBlob(doc);
-  const filename = `${inv.billName || 'invoice'}.docx`;
+  downloadBlob(blob, getReviewDocFileName(row));
+}
+
+function createDocxTableRow(docx, label, value) {
+  return new docx.TableRow({
+    children: [
+      new docx.TableCell({
+        width: { size: 30, type: docx.WidthType.PERCENTAGE },
+        children: [new docx.Paragraph({ children: [new docx.TextRun({ text: String(label), bold: true })] })]
+      }),
+      new docx.TableCell({
+        width: { size: 70, type: docx.WidthType.PERCENTAGE },
+        children: [new docx.Paragraph({ children: [new docx.TextRun({ text: String(value ?? '—') })] })]
+      })
+    ]
+  });
+}
+
+function getDocxImageType(dataUrl) {
+  if (dataUrl.startsWith('data:image/png')) return 'png';
+  if (dataUrl.startsWith('data:image/gif')) return 'gif';
+  if (dataUrl.startsWith('data:image/bmp')) return 'bmp';
+  return 'jpg';
+}
+
+async function getImageTransformation(dataUrl, maxWidth, maxHeight) {
+  return new Promise((resolve) => {
+    const image = new window.Image();
+    image.onload = () => {
+      const ratio = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+      resolve({
+        width: Math.round(image.width * ratio),
+        height: Math.round(image.height * ratio)
+      });
+    };
+    image.onerror = () => resolve({ width: 400, height: 250 });
+    image.src = dataUrl;
+  });
+}
+
+function getReviewDocFileName(row) {
+  const base = row.billName !== '—' ? row.billName : row.imageFileName || `review-row-${row.index}`;
+  return `${String(row.index).padStart(2, '0')}_${sanitizeFileName(base)}.docx`;
+}
+
+function sanitizeFileName(value) {
+  return String(value || 'file')
+    .normalize('NFC')
+    .replace(/[\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'file';
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function uploadToDrive(inv, img) {

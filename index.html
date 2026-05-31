@@ -74,11 +74,12 @@
       <div id="unmatched-bills-section" class="my-6"></div>
 
       <!-- Step 5 -->
-      <!-- <div class="card p-4 bg-white rounded shadow" id="step-5">
+      <div class="card p-4 bg-white rounded shadow" id="step-5">
         <h2 class="font-medium mb-2">Bước 5 — Xuất file Word</h2>
-        <button id="export-all" class="bg-green-600 text-white px-3 py-1 rounded">Xuất tất cả đã xác nhận</button>
-        <div id="export-log" class="mt-3 text-sm"></div>
-      </div> -->
+        <p class="text-sm text-gray-600 mb-3">Mỗi row trong bảng Bước 4 sẽ được tạo thành 1 file Word riêng. Bạn cũng có thể bấm "Tải Word" ở từng row.</p>
+        <button id="export-all" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded disabled:opacity-50">Xuất tất cả row trong Bước 4</button>
+        <div id="export-log" class="mt-3 text-sm space-y-1"></div>
+      </div>
     </div>
   </div>
 
@@ -94,6 +95,7 @@
   <script src="https://unpkg.com/tippy.js@6"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
