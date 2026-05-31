@@ -808,10 +808,11 @@ function renderSuspiciousBillTable() {
               <th class="p-2 text-left">Số tiền con tìm được</th>
               <th class="p-2 text-left">Tổng ảnh</th>
               <th class="p-2 text-left">Ảnh nghi vấn</th>
+              <th class="p-2 text-left">Word</th>
             </tr>
           </thead>
           <tbody>
-            ${suspicious.map(item => `
+            ${suspicious.map((item, suspiciousIndex) => `
               <tr class="border-t">
                 <td class="p-2 align-top">${item.bill.billName || '—'}</td>
                 <td class="p-2 align-top font-semibold">${formatAmount(item.bill.price)}</td>
@@ -829,6 +830,11 @@ function renderSuspiciousBillTable() {
                       </div>
                     `).join('')}
                   </div>
+                </td>
+                <td class="p-2 align-top">
+                  <button type="button" data-export-suspicious-row="${suspiciousIndex}" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs whitespace-nowrap disabled:opacity-50" ${item.images.length ? '' : 'disabled'}>
+                    Tải Word
+                  </button>
                 </td>
               </tr>
             `).join('')}
@@ -866,21 +872,32 @@ if (exportAllBtn) {
 }
 
 document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('[data-export-review-row]');
-  if (!btn) return;
+  const reviewBtn = e.target.closest('[data-export-review-row]');
+  if (reviewBtn) {
+    const rowIndex = Number(reviewBtn.dataset.exportReviewRow);
+    await withDownloadButtonLoading(reviewBtn, () => exportReviewRowDoc(rowIndex));
+    return;
+  }
 
-  const rowIndex = Number(btn.dataset.exportReviewRow);
+  const suspiciousBtn = e.target.closest('[data-export-suspicious-row]');
+  if (suspiciousBtn) {
+    const suspiciousIndex = Number(suspiciousBtn.dataset.exportSuspiciousRow);
+    await withDownloadButtonLoading(suspiciousBtn, () => exportSuspiciousBillDoc(suspiciousIndex));
+  }
+});
+
+async function withDownloadButtonLoading(btn, action) {
   btn.disabled = true;
   const originalText = btn.textContent;
   btn.textContent = 'Đang tạo...';
 
   try {
-    await exportReviewRowDoc(rowIndex);
+    await action();
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
   }
-});
+}
 
 async function exportReviewRowDoc(rowIndex, options = {}) {
   if (!window.docx) {
@@ -937,6 +954,105 @@ async function exportAllReviewRows() {
   alert(`Đã tạo ${success}/${images.length} file Word.`);
   setStepProgress(5);
 }
+
+async function exportSuspiciousBillDoc(suspiciousIndex) {
+  if (!window.docx) {
+    alert('Thiếu thư viện docx.js. Hãy kiểm tra thẻ script CDN trong index.html.');
+    return;
+  }
+
+  const suspicious = findSuspiciousBillMappings();
+  const item = suspicious[suspiciousIndex];
+  if (!item) {
+    alert('Không tìm thấy dòng nghi vấn cần xuất Word. Hãy chạy lại quy trình rồi thử lại.');
+    return;
+  }
+
+  await exportWordDocFromSuspiciousBill(item, suspiciousIndex);
+
+  if (exportLog) {
+    exportLog.innerHTML += `<div class="text-green-600">✔ Đã tải Word nghi vấn ghép bill: ${escapeHtml(item.bill.billName || `Dòng ${suspiciousIndex + 1}`)}</div>`;
+  }
+  setStepProgress(5);
+}
+
+async function exportWordDocFromSuspiciousBill(item, suspiciousIndex) {
+  const docx = window.docx;
+  const titleText = item.bill.billName || `Nghi vấn ghép bill ${suspiciousIndex + 1}`;
+
+  const children = [
+    new docx.Paragraph({
+      children: [new docx.TextRun({ text: `Nghi vấn ghép bill - ${String(titleText)}`, bold: true, size: 32 })],
+      spacing: { after: 240 }
+    }),
+    new docx.Table({
+      width: { size: 100, type: docx.WidthType.PERCENTAGE },
+      rows: [
+        createDocxTableRow(docx, 'Nội dung bill', item.bill.billName || '—'),
+        createDocxTableRow(docx, 'Họ và tên', item.bill.fullName || '—'),
+        createDocxTableRow(docx, 'Loại quỹ', item.bill.fundType || '—'),
+        createDocxTableRow(docx, 'Ngày', item.bill.date || '—'),
+        createDocxTableRow(docx, 'Số tiền bill', `${formatAmount(item.bill.price)} VND`),
+        createDocxTableRow(docx, 'Số tiền con tìm được', item.subAmounts.map(a => formatAmount(a)).join(', ') || '—'),
+        createDocxTableRow(docx, 'Tổng tiền ảnh nghi vấn', `${formatAmount(item.imgSum)} VND`),
+        createDocxTableRow(docx, 'Đánh giá tổng', item.sumClose ? 'Tổng ảnh gần khớp bill' : 'Tổng ảnh chưa khớp hoàn toàn'),
+        createDocxTableRow(docx, 'Số ảnh nghi vấn', item.images.length)
+      ]
+    }),
+    new docx.Paragraph({ text: '', spacing: { after: 180 } }),
+    new docx.Paragraph({
+      children: [new docx.TextRun({ text: 'Danh sách ảnh nghi vấn', bold: true, size: 24 })],
+      spacing: { before: 180, after: 120 }
+    })
+  ];
+
+  for (let i = 0; i < item.images.length; i++) {
+    const img = item.images[i];
+    children.push(
+      new docx.Paragraph({
+        children: [new docx.TextRun({ text: `Ảnh ${i + 1}: ${img.file?.name || `anh-nghi-van-${i + 1}`} - ${formatAmount(img.extractedAmount)} VND`, bold: true })],
+        spacing: { before: 180, after: 100 }
+      })
+    );
+
+    if (!img.dataUrl) {
+      children.push(new docx.Paragraph({ children: [new docx.TextRun({ text: '[Ảnh này chưa có dữ liệu]' })] }));
+      continue;
+    }
+
+    try {
+      let dataUrl = img.dataUrl;
+      if (dataUrl.startsWith('data:image/webp')) {
+        dataUrl = await webpToPng(dataUrl);
+      }
+
+      const imgBuffer = await fetch(dataUrl).then(r => r.arrayBuffer());
+      const transformation = await getImageTransformation(dataUrl, 520, 520);
+      children.push(
+        new docx.Paragraph({
+          children: [
+            new docx.ImageRun({
+              data: imgBuffer,
+              transformation,
+              type: getDocxImageType(dataUrl)
+            })
+          ]
+        })
+      );
+    } catch (err) {
+      console.error('Lỗi khi thêm ảnh nghi vấn vào Word:', err);
+      children.push(new docx.Paragraph({ children: [new docx.TextRun({ text: '[Không thể nhúng ảnh này]' })] }));
+    }
+  }
+
+  const doc = new docx.Document({
+    sections: [{ children }]
+  });
+
+  const blob = await docx.Packer.toBlob(doc);
+  downloadBlob(blob, getSuspiciousDocFileName(item, suspiciousIndex));
+}
+
 
 async function exportWordDocFromReviewRow(row) {
   const docx = window.docx;
@@ -1045,6 +1161,11 @@ async function getImageTransformation(dataUrl, maxWidth, maxHeight) {
 function getReviewDocFileName(row) {
   const base = row.billName !== '—' ? row.billName : row.imageFileName || `review-row-${row.index}`;
   return `${String(row.index).padStart(2, '0')}_${sanitizeFileName(base)}.docx`;
+}
+
+function getSuspiciousDocFileName(item, suspiciousIndex) {
+  const base = item.bill.billName || `nghi-van-ghep-bill-${suspiciousIndex + 1}`;
+  return `nghi-van-${String(suspiciousIndex + 1).padStart(2, '0')}_${sanitizeFileName(base)}.docx`;
 }
 
 function sanitizeFileName(value) {
